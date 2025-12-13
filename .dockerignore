@@ -1,0 +1,12 @@
+__pycache__
+*.pyc
+.ipynb_checkpoints
+.Rhistory
+.RData
+results/*/
+preprocessed/*.jshd
+data/*.png
+analysis/figures/
+*.log
+.git
+.gitignore

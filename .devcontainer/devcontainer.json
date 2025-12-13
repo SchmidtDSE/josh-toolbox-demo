@@ -1,0 +1,27 @@
+{
+  "name": "Josh Toolbox Demo",
+  "build": {
+    "context": "..",
+    "dockerfile": "../Dockerfile"
+  },
+  "features": {
+    "ghcr.io/devcontainers/features/git:1": {}
+  },
+  "workspaceFolder": "/workspace",
+  "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "REditorSupport.r",
+        "ms-python.python",
+        "ms-toolsai.jupyter@2025.7.0"
+      ],
+      "settings": {
+        "python.defaultInterpreterPath": "/workspace/.pixi/envs/default/bin/python"
+      }
+    }
+  },
+  "forwardPorts": [8888],
+  "postCreateCommand": "pixi install && bash get_fat_jar.sh",
+  "remoteUser": "root"
+}
