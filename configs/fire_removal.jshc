@@ -1,0 +1,6 @@
+# Fire + invasive removal scenario
+# Tests invasive grass removal as intervention
+
+hasFire = 1 count
+seedingBoost = 0 count
+removalEffort = 12 percent

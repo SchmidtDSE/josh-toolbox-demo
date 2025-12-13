@@ -1,0 +1,6 @@
+# Baseline scenario - no fire, no interventions
+# Serves as the counterfactual control
+
+hasFire = 0 count
+seedingBoost = 0 count
+removalEffort = 0 percent

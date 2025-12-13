@@ -1,0 +1,6 @@
+# Fire + both interventions scenario
+# Tests combined seeding and removal
+
+hasFire = 1 count
+seedingBoost = 8 count
+removalEffort = 12 percent

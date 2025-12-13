@@ -1,0 +1,7 @@
+# Cold-start equilibration configuration
+# Run for 1000 years to establish quasi-stable equilibrium
+# No fire, no interventions
+
+scenario.fireOccurred = false
+scenario.seedingIntervention = false
+scenario.invasiveRemoval = false

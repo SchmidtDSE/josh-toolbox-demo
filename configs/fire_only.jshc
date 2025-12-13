@@ -1,0 +1,6 @@
+# Fire-only scenario - fire disturbance, no interventions
+# Shows unmitigated fire impact
+
+hasFire = 1 count
+seedingBoost = 0 count
+removalEffort = 0 percent

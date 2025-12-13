@@ -1,0 +1,6 @@
+# Fire + seeding scenario
+# Tests native tree seeding as intervention
+
+hasFire = 1 count
+seedingBoost = 8 count
+removalEffort = 0 percent
