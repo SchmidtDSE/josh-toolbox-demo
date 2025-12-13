@@ -1,13 +1,6 @@
 # Josh Toolbox Demo
 
-Complete end-to-end demonstration of post-fire vegetation recovery workflow using **Pixi** for unified dependency management.
-
-## Why Pixi?
-
-- **Single tool** manages Python, R, and Java
-- **Reproducible** environments via `pixi.lock`
-- **Fast** installations using conda-forge
-- **Simple** declarative configuration in `pixi.toml`
+Complete end-to-end demonstration of post-fire vegetation recovery workflow using **Pixi** for unified dependency management, managing Python, R, and Java.
 
 ## Quick Start
 
