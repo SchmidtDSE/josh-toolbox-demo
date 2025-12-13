@@ -1,0 +1,26 @@
+# Minimal test for external data loading
+
+start unit m
+  alias meter
+  alias meters
+end unit
+
+start unit count
+end unit
+
+start unit ratio
+end unit
+
+start simulation TestExternal
+  grid.size = 10 m
+  grid.low = 0.003 degrees latitude, 0 degrees longitude
+  grid.high = 0 degrees latitude, 0.003 degrees longitude
+  steps.low = 0 count
+  steps.high = 1 count
+  exportFiles.patch = "file:///workspace/results/test_external_{replicate}.csv"
+end simulation
+
+start patch Default
+  severity.init = external fireSeverity
+  export.severity.init = severity
+end patch

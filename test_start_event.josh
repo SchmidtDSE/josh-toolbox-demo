@@ -1,0 +1,29 @@
+# Test: using .start event instead of .step for organism attributes
+
+start unit count
+end unit
+
+start unit m
+  alias meter
+  alias meters
+end unit
+
+start simulation TestStart
+  grid.size = 10 m
+  grid.low = 0 m latitude, 0 m longitude
+  grid.high = 30 m latitude, 30 m longitude
+  steps.low = 0 count
+  steps.high = 10 count
+  exportFiles.patch = "file:///workspace/results/test_start_{replicate}.csv"
+end simulation
+
+start patch Default
+  Thing.init = create Thing
+  export.sumAge.step = sum(Thing.age)
+end patch
+
+start organism Thing
+  age.init = 0 count
+  # Try using .start instead of .step
+  age.start = prior.age + 1 count
+end organism

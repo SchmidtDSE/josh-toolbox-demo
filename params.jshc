@@ -1,0 +1,98 @@
+# Post-Fire Vegetation Recovery Model Parameters
+# All tunable parameters for the simulation
+# Reference in Josh code as: config params.variableName
+
+# =============================================================================
+# SIMULATION SETTINGS
+# =============================================================================
+
+totalSteps = 50 count
+gridSize = 10 m
+
+# =============================================================================
+# TREE POPULATION
+# =============================================================================
+
+initialTreesPerPatch = 8 count
+maxTreesPerPatch = 10 count
+initialAgeMin = 0 years
+initialAgeMax = 20 years
+
+# =============================================================================
+# LIFE STAGE THRESHOLDS
+# =============================================================================
+
+seedlingToJuvenileAge = 3 years
+juvenileToAdultAge = 10 years
+
+# =============================================================================
+# BASE MORTALITY RATES (annual, by life stage)
+# =============================================================================
+
+seedlingBaseMortality = 40 percent
+juvenileBaseMortality = 15 percent
+adultBaseMortality = 5 percent
+
+# Additional seedling mortality from invasive pressure
+seedlingInvasivePressure = 20 percent
+invasivePressureThreshold = 30 percent
+
+# =============================================================================
+# FIRE SEVERITY THRESHOLDS
+# =============================================================================
+
+highSeverityThreshold = 0.7
+mediumSeverityThreshold = 0.3
+
+# =============================================================================
+# FIRE MORTALITY RATES (by severity and life stage)
+# =============================================================================
+
+# High severity fire (>0.7)
+fireHighSeedling = 100 percent
+fireHighJuvenile = 90 percent
+fireHighAdult = 60 percent
+
+# Medium severity fire (0.3-0.7)
+fireMediumSeedling = 80 percent
+fireMediumJuvenile = 50 percent
+fireMediumAdult = 20 percent
+
+# Low severity fire (<0.3)
+fireLowSeedling = 20 percent
+fireLowJuvenile = 10 percent
+fireLowAdult = 5 percent
+
+# =============================================================================
+# INVASIVE GRASS DYNAMICS
+# =============================================================================
+
+# Baseline (no fire) initial cover
+baselineInvasiveCover = 20 percent
+
+# Post-fire initial cover (HIGH severity = MORE invasives, grass-fire cycle)
+fireHighInvasiveCover = 70 percent
+fireMediumInvasiveCover = 50 percent
+fireLowInvasiveCover = 30 percent
+
+# Establishment threshold - natives can't establish above this
+establishmentThreshold = 50 percent
+
+# Growth dynamics
+invasiveBaseGrowthRate = 3 percent
+postFireGrowthBonus = 5 percent
+postFireBonusDuration = 5 count
+
+# Tree suppression of invasives (0-1 scale)
+treeSuppression = 0.5
+
+# =============================================================================
+# INTERVENTION PARAMETERS
+# =============================================================================
+
+# Seeding intervention
+seedingBoostAmount = 8 count
+
+# Invasive removal intervention
+removalEffortRate = 12 percent
+removalDuration = 10 count

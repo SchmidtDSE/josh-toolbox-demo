@@ -1,0 +1,24 @@
+# Test: does a patch-level attribute increment work?
+
+start unit count
+end unit
+
+start unit m
+  alias meter
+  alias meters
+end unit
+
+start simulation TestPatchAge
+  grid.size = 10 m
+  grid.low = 0 m latitude, 0 m longitude
+  grid.high = 30 m latitude, 30 m longitude
+  steps.low = 0 count
+  steps.high = 10 count
+  exportFiles.patch = "file:///workspace/results/test_patch_age_{replicate}.csv"
+end simulation
+
+start patch Default
+  patchAge.init = 0 count
+  patchAge.step = prior.patchAge + 1 count
+  export.patchAge.step = patchAge
+end patch
