@@ -1,0 +1,114 @@
+# Post-Fire Vegetation Recovery Model - baseline
+# Generated from configs/params.jshc
+
+start unit year
+  alias years
+end unit
+
+start unit m
+  alias meter
+  alias meters
+end unit
+
+start unit count
+end unit
+
+start unit percent
+  alias pct
+end unit
+
+start simulation Main
+
+  grid.size = 10 m
+  grid.low = 0.003 degrees latitude, 0 degrees longitude
+  grid.high = 0 degrees latitude, 0.003 degrees longitude
+
+  steps.low = 0 count
+  steps.high = 50 count
+
+  exportFiles.patch = "file:///workspace/results/baseline_{replicate}.csv"
+
+end simulation
+
+start patch Default
+
+  seedingBoost.init = 0 count
+  removalEffort.init = 0 percent
+
+  fireSeverity.init = 0
+
+  NativeTree.init = create 8 count of NativeTree
+  NativeTree.start = prior.NativeTree[prior.NativeTree.alive == true]
+
+  numAdults.step = count(NativeTree[NativeTree.state == "Adult"])
+  numTrees.step = count(NativeTree)
+  roomForSeedlings.step = 10 count - numTrees
+  hasRoom.step = roomForSeedlings > 0 count
+  canEstablish.step = invasiveCover < 50 percent
+
+  potentialSeedlings.step = numAdults if (canEstablish and hasRoom) else 0 count
+  limitedSeedlings.step = potentialSeedlings if potentialSeedlings < roomForSeedlings else roomForSeedlings
+  actualNewSeedlings.step = limitedSeedlings if limitedSeedlings > 0 count else 0 count
+
+  NativeTree.end = prior.NativeTree | create actualNewSeedlings of NativeTree
+
+  invasiveCover.init = 20 percent
+
+  stepCount.init = 0 count
+  stepCount.step = prior.stepCount + 1 count
+
+  postFireBonus.step = 0 percent
+  activeRemoval.step = removalEffort if stepCount < 10 count else 0 percent
+
+  treeSuppression.step = 0.5 * (numTrees / 10 count) if numTrees > 0 count else 0
+  growthRate.step = (3 percent + postFireBonus) * (1 - treeSuppression)
+  netGrowth.step = growthRate * (1 - prior.invasiveCover / 100 percent) - activeRemoval
+
+  rawCover.step = prior.invasiveCover + netGrowth
+  invasiveCover.step = 0 percent if rawCover < 0 percent else (100 percent if rawCover > 100 percent else rawCover)
+
+  export.numSeedling.step = count(NativeTree[NativeTree.state == "Seedling"])
+  export.numJuvenile.step = count(NativeTree[NativeTree.state == "Juvenile"])
+  export.numAdult.step = count(NativeTree[NativeTree.state == "Adult"])
+  export.numAlive.step = count(NativeTree[NativeTree.alive == true])
+  export.invasiveCover.step = invasiveCover
+  export.newSeedlings.step = actualNewSeedlings
+  export.fireSeverity.init = fireSeverity
+
+end patch
+
+start organism NativeTree
+
+  age.init = sample uniform from 0 years to 20 years
+  state.init = "Adult" if age >= 10 years else ("Juvenile" if age >= 3 years else "Seedling")
+
+  fireDeathRoll.init = sample uniform from 0 percent to 100 percent
+  fireMortality.init = 0 percent
+  alive.init = fireDeathRoll > fireMortality
+
+  age.step = prior.age + 1 year
+
+  start state "Seedling"
+    baseMortality.step = 40 percent
+    invasivePressure.step = 20 percent if here.invasiveCover > 30 percent else 0 percent
+    totalMortality.step = baseMortality + invasivePressure
+
+    deathRoll.step = sample uniform from 0 percent to 100 percent
+    alive.step = deathRoll > totalMortality
+
+    state.step:if(current.age >= 3 years and current.alive == true) = "Juvenile"
+  end state
+
+  start state "Juvenile"
+    deathRoll.step = sample uniform from 0 percent to 100 percent
+    alive.step = deathRoll > 15 percent
+
+    state.step:if(current.age >= 10 years and current.alive == true) = "Adult"
+  end state
+
+  start state "Adult"
+    deathRoll.step = sample uniform from 0 percent to 100 percent
+    alive.step = deathRoll > 5 percent
+  end state
+
+end organism
