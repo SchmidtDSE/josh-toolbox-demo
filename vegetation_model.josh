@@ -1,0 +1,158 @@
+# Post-Fire Vegetation Recovery Model
+# Simplified version demonstrating tree life stages and invasive grass dynamics
+
+# =============================================================================
+# UNIT DEFINITIONS
+# =============================================================================
+
+start unit year
+  alias years
+  alias yr
+  alias yrs
+end unit
+
+start unit m
+  alias meter
+  alias meters
+end unit
+
+start unit count
+end unit
+
+# =============================================================================
+# SIMULATION CONFIGURATION
+# =============================================================================
+
+start simulation Main
+
+  # Spatial configuration: 30x30 grid of 10m patches
+  # Using WGS84 degrees (0.003° ≈ 300m at equator)
+  grid.size = 10 m
+  # grid.low = NW corner (top-left), grid.high = SE corner (bottom-right)
+  grid.low = 0.003 degrees latitude, 0 degrees longitude
+  grid.high = 0 degrees latitude, 0.003 degrees longitude
+  grid.patch = "Default"
+
+  # Temporal configuration: 50 years
+  steps.low = 0 count
+  steps.high = 50 count
+
+  # Export to local file
+  exportFiles.patch = "file:///workspace/results/vegetation_{replicate}.csv"
+
+end simulation
+
+# =============================================================================
+# PATCH DEFINITION
+# =============================================================================
+
+start patch Default
+
+  # -------------------------------------------------------------------------
+  # EXTERNAL DATA
+  # -------------------------------------------------------------------------
+
+  # Read fire severity from external data
+  # The JSHD file contains a variable named "data"
+  fireSeverity.init = external data
+
+  # -------------------------------------------------------------------------
+  # ORGANISMS
+  # -------------------------------------------------------------------------
+
+  # Create one tree per patch (simplified from original 5)
+  NativeTree.init = create NativeTree
+
+  # Create one invasive grass tracker per patch
+  InvasiveGrass.init = create InvasiveGrass
+
+  # -------------------------------------------------------------------------
+  # EXPORTS
+  # -------------------------------------------------------------------------
+
+  export.fireSeverity.init = fireSeverity
+  export.numSeedling.step = count(NativeTree[NativeTree.state == "Seedling"])
+  export.numJuvenile.step = count(NativeTree[NativeTree.state == "Juvenile"])
+  export.numAdult.step = count(NativeTree[NativeTree.state == "Adult"])
+  export.treeAlive.step = count(NativeTree[NativeTree.alive == true])
+  export.invasiveCover.step = mean(InvasiveGrass.cover)
+
+end patch
+
+# =============================================================================
+# INVASIVE GRASS ORGANISM
+# =============================================================================
+
+start organism InvasiveGrass
+
+  # Initial cover (fixed at 10%)
+  cover.init = 10 percent
+
+  # Growth each year (logistic growth toward 100%)
+  cover.step = prior.cover + 3 percent
+
+end organism
+
+# =============================================================================
+# NATIVE TREE ORGANISM
+# =============================================================================
+
+start organism NativeTree
+
+  # -------------------------------------------------------------------------
+  # INITIALIZATION
+  # -------------------------------------------------------------------------
+
+  alive.init = true
+  age.init = 0 years
+  state.init = "Seedling"
+
+  # -------------------------------------------------------------------------
+  # AGE PROGRESSION
+  # -------------------------------------------------------------------------
+
+  age.step = prior.age + 1 year
+
+  # -------------------------------------------------------------------------
+  # SEEDLING STATE
+  # -------------------------------------------------------------------------
+
+  start state "Seedling"
+
+    # Annual mortality: 30%
+    deathRoll.step = sample uniform from 0 percent to 100 percent
+    alive.step = deathRoll > 30 percent
+
+    # Transition to Juvenile at age 3
+    state.step:if(current.age >= 3 years and current.alive == true) = "Juvenile"
+
+  end state
+
+  # -------------------------------------------------------------------------
+  # JUVENILE STATE
+  # -------------------------------------------------------------------------
+
+  start state "Juvenile"
+
+    # Annual mortality: 15%
+    deathRoll.step = sample uniform from 0 percent to 100 percent
+    alive.step = deathRoll > 15 percent
+
+    # Transition to Adult at age 10
+    state.step:if(current.age >= 10 years and current.alive == true) = "Adult"
+
+  end state
+
+  # -------------------------------------------------------------------------
+  # ADULT STATE
+  # -------------------------------------------------------------------------
+
+  start state "Adult"
+
+    # Annual mortality: 5%
+    deathRoll.step = sample uniform from 0 percent to 100 percent
+    alive.step = deathRoll > 5 percent
+
+  end state
+
+end organism
