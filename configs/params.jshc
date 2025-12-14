@@ -87,6 +87,41 @@ postFireBonusDuration = 5 count
 treeSuppression = 0.5
 
 # =============================================================================
+# ELEVATION EFFECTS
+# =============================================================================
+# Elevation creates a spatial gradient in ecological outcomes:
+#   - LOW elevation: Invasives thrive, seedling survival is reduced
+#   - HIGH elevation: Invasives struggle, seedlings survive better
+#
+# The goal is to show that "High elevation areas will recover on their own;
+# we should prioritize management in low elevation burned areas."
+#
+# TUNING GUIDE:
+#   - If patterns are too subtle: INCREASE reduction values
+#   - If invasives never grow at high elevation: DECREASE invasiveElevationReduction
+#   - If seedlings always die at low elevation: DECREASE seedlingElevationReduction
+#   - Effects are applied in zones (high/medium/low elevation)
+#
+# Zone thresholds (defined in model):
+#   - High elevation: >= 60%
+#   - Medium elevation: 30-60%
+#   - Low elevation: < 30%
+
+# Invasive grass response to elevation (percent reduction at HIGH elevation)
+# At high elevation, invasive growth rate is reduced by this amount
+# Example: 5 percent means high-elevation invasive growth is 5%/year slower
+invasiveElevationReduction = 5 percent
+
+# Seedling survival bonus from elevation (percent mortality reduction at HIGH elevation)
+# At high elevation, seedling base mortality is reduced by this amount
+# Example: 20 percent means seedlings have 20% lower mortality at high elevation
+seedlingElevationReduction = 20 percent
+
+# Juvenile survival bonus from elevation (percent mortality reduction at HIGH elevation)
+# Juveniles are more established, so elevation matters less
+juvenileElevationReduction = 6 percent
+
+# =============================================================================
 # INTERVENTION PARAMETERS
 # =============================================================================
 

@@ -1,5 +1,30 @@
 # Post-Fire Vegetation Recovery Model
-# Simplified version demonstrating tree life stages and invasive grass dynamics
+# =============================================================================
+# A unified model that reads all parameters from config files.
+#
+# Usage:
+#   java -jar joshsim-fat.jar run \
+#       --data params.jshc=configs/params.jshc \
+#       --data scenario.jshc=configs/baseline.jshc \
+#       --data fire.jshd=preprocessed/fire_severity.jshd \
+#       --data elevation.jshd=preprocessed/elevation.jshd \
+#       vegetation_model.josh Main
+#
+# Config files:
+#   - params.jshc: Ecological parameters (mortality rates, thresholds, etc.)
+#   - scenario.jshc: Scenario settings (hasFire, seedingBoost, removalEffort)
+#   - fire.jshd: Preprocessed fire severity raster (external spatial data)
+#   - elevation.jshd: Preprocessed elevation raster (0-1 normalized)
+#
+# ELEVATION EFFECTS:
+#   Elevation drives spatial patterns in ecological outcomes:
+#   - HIGH elevation: Trees recover well, invasives suppressed
+#   - LOW elevation: Invasives dominate, seedlings struggle
+#   Key parameters (in params.jshc):
+#   - invasiveElevationSensitivity: How much elevation reduces invasive growth
+#   - seedlingElevationBonus: How much elevation helps seedling survival
+#   - juvenileElevationBonus: How much elevation helps juvenile survival
+# =============================================================================
 
 # =============================================================================
 # UNIT DEFINITIONS
@@ -7,8 +32,6 @@
 
 start unit year
   alias years
-  alias yr
-  alias yrs
 end unit
 
 start unit m
@@ -19,26 +42,30 @@ end unit
 start unit count
 end unit
 
+start unit percent
+  alias pct
+end unit
+
 # =============================================================================
 # SIMULATION CONFIGURATION
 # =============================================================================
 
 start simulation Main
 
-  # Spatial configuration: 30x30 grid of 10m patches
-  # Using WGS84 degrees (0.003° ≈ 300m at equator)
+  # Spatial grid: 30x30 patches of 10m each
   grid.size = 10 m
-  # grid.low = NW corner (top-left), grid.high = SE corner (bottom-right)
   grid.low = 0.003 degrees latitude, 0 degrees longitude
   grid.high = 0 degrees latitude, 0.003 degrees longitude
   grid.patch = "Default"
 
-  # Temporal configuration: 50 years
+  # Temporal configuration
   steps.low = 0 count
-  steps.high = 50 count
+  steps.high = config params.totalSteps else 50 count
 
-  # Export to local file
-  exportFiles.patch = "file:///workspace/results/vegetation_{replicate}.csv"
+  # Output file path
+  # Note: Josh's config parser doesn't support string values well, so we use the default
+  # path and rename outputs after simulation, or override via command line
+  exportFiles.patch = "file:///workspace/results/output_{replicate}.csv"
 
 end simulation
 
@@ -49,49 +76,159 @@ end simulation
 start patch Default
 
   # -------------------------------------------------------------------------
-  # EXTERNAL DATA
+  # SCENARIO SETTINGS (from scenario.jshc)
   # -------------------------------------------------------------------------
 
-  # Read fire severity from external data
-  # The JSHD file contains a variable named "data"
-  fireSeverity.init = external data
+  # Whether fire occurred (0 = no fire, 1 = fire)
+  hasFire.init = config scenario.hasFire else 0 count
+
+  # Intervention intensities
+  seedingBoost.init = config scenario.seedingBoost else 0 count
+  removalEffort.init = config scenario.removalEffort else 0 percent
 
   # -------------------------------------------------------------------------
-  # ORGANISMS
+  # FIRE SEVERITY (from external data or zero)
   # -------------------------------------------------------------------------
 
-  # Create one tree per patch (simplified from original 5)
-  NativeTree.init = create NativeTree
+  # Read fire severity from preprocessed JSHD file (0 if no fire scenario)
+  fireSeverity.init = (external fire) if hasFire > 0 count else 0
 
-  # Create one invasive grass tracker per patch
-  InvasiveGrass.init = create InvasiveGrass
+  # -------------------------------------------------------------------------
+  # ELEVATION (from external data)
+  # -------------------------------------------------------------------------
+  # Elevation is 0-100 percent where:
+  #   0% = lowest elevation (invasives thrive, seedlings struggle)
+  #   100% = highest elevation (invasives suppressed, seedlings thrive)
+  # We use threshold-based zones to avoid unit conversion issues.
+
+  elevation.init = external elevation
+
+  # Elevation zone thresholds (percent)
+  highElevationThreshold.init = 60 percent
+  mediumElevationThreshold.init = 30 percent
+
+  # Determine elevation zone (for conditional effects)
+  isHighElevation.init = elevation >= highElevationThreshold
+  isMediumElevation.init = elevation >= mediumElevationThreshold and elevation < highElevationThreshold
+  isLowElevation.init = elevation < mediumElevationThreshold
+
+  # Elevation effect parameters (from config) - all in percent for consistent units
+  # These define effects at HIGH elevation (reduced/no effect at lower elevations)
+  invasiveElevationReduction.init = config params.invasiveElevationReduction else 5 percent
+  seedlingElevationReduction.init = config params.seedlingElevationReduction else 20 percent
+  juvenileElevationReduction.init = config params.juvenileElevationReduction else 6 percent
+
+  # Half-effects for medium elevation zone
+  invasiveMediumReduction.init = 2 percent
+  seedlingMediumReduction.init = 10 percent
+  juvenileMediumReduction.init = 3 percent
+
+  # -------------------------------------------------------------------------
+  # SEVERITY THRESHOLDS (hardcoded for compatibility)
+  # Note: Josh's config system has issues with unitless values in comparisons
+  # -------------------------------------------------------------------------
+
+  highSeverityThreshold.init = 0.7
+  mediumSeverityThreshold.init = 0.3
+
+  # -------------------------------------------------------------------------
+  # TREE POPULATION
+  # -------------------------------------------------------------------------
+
+  # Parameters from config
+  initialTreesPerPatch.init = config params.initialTreesPerPatch else 8 count
+  maxTreesPerPatch.init = config params.maxTreesPerPatch else 10 count
+
+  # Create initial trees (plus any seeding boost for intervention scenarios)
+  totalInitialTrees.init = initialTreesPerPatch + seedingBoost
+  NativeTree.init = create totalInitialTrees of NativeTree
+
+  # Remove dead trees at start of each step
+  NativeTree.start = prior.NativeTree[prior.NativeTree.alive == true]
+
+  # Count trees by life stage
+  numSeedlings.step = count(NativeTree[NativeTree.state == "Seedling"])
+  numJuveniles.step = count(NativeTree[NativeTree.state == "Juvenile"])
+  numAdults.step = count(NativeTree[NativeTree.state == "Adult"])
+  numTrees.step = count(NativeTree)
+
+  # -------------------------------------------------------------------------
+  # REPRODUCTION
+  # -------------------------------------------------------------------------
+
+  # Establishment threshold from config
+  establishmentThreshold.init = config params.establishmentThreshold else 50 percent
+
+  # Check if there's room and conditions allow establishment
+  roomForSeedlings.step = maxTreesPerPatch - numTrees
+  hasRoom.step = roomForSeedlings > 0 count
+  canEstablish.step = invasiveCover < establishmentThreshold
+
+  # Adults produce seedlings (limited by available space)
+  potentialSeedlings.step = numAdults if (canEstablish and hasRoom) else 0 count
+  limitedSeedlings.step = potentialSeedlings if potentialSeedlings < roomForSeedlings else roomForSeedlings
+  actualNewSeedlings.step = limitedSeedlings if limitedSeedlings > 0 count else 0 count
+
+  # Add new seedlings at end of step
+  NativeTree.end = prior.NativeTree | create actualNewSeedlings of NativeTree
+
+  # -------------------------------------------------------------------------
+  # INVASIVE GRASS DYNAMICS
+  # -------------------------------------------------------------------------
+
+  # Initial invasive cover based on fire severity (or baseline if no fire)
+  # Fire increases invasive cover; higher severity = more invasives (grass-fire feedback)
+  invasiveCover.init = 70 percent if (hasFire > 0 count and fireSeverity > 0.7) else (
+    50 percent if (hasFire > 0 count and fireSeverity > 0.3) else (
+    30 percent if hasFire > 0 count else 20 percent))
+
+  # Track time steps for post-fire bonus duration
+  stepCount.init = 0 count
+  stepCount.step = prior.stepCount + 1 count
+
+  # Invasive growth dynamics:
+  # - Base growth: 3% per year (logistic)
+  # - Post-fire bonus: +5% for first 5 years after fire
+  # - Tree suppression: up to 50% reduction at max tree density
+  # - Removal: reduces cover during treatment period (10 years)
+
+  # Post-fire growth bonus (only if fire occurred and within 5 years)
+  activePostFireBonus.step = 5 percent if (hasFire > 0 count and stepCount < 5 count) else 0 percent
+
+  # Active removal effort (only during first 10 years)
+  activeRemoval.step = removalEffort if stepCount < 10 count else 0 percent
+
+  # Tree suppression of invasive growth (more trees = less invasive growth)
+  currentTreeSuppression.step = 0.5 * (numTrees / maxTreesPerPatch) if numTrees > 0 count else 0
+
+  # Calculate net invasive growth
+  # Base growth modified by: tree suppression, elevation effect
+  # Elevation reduces growth at high elevation (where climate limits invasives)
+  baseGrowthRate.step = (3 percent + activePostFireBonus) * (1 - currentTreeSuppression)
+  # Elevation reduction based on zone (no multiplication needed)
+  currentElevationReduction.step = invasiveElevationReduction if isHighElevation else (
+    invasiveMediumReduction if isMediumElevation else 0 percent)
+  growthRate.step = baseGrowthRate - currentElevationReduction
+  netGrowth.step = growthRate * (1 - prior.invasiveCover / 100 percent) - activeRemoval
+
+  # Update invasive cover (clamped to 0-100%)
+  rawCover.step = prior.invasiveCover + netGrowth
+  invasiveCover.step = 0 percent if rawCover < 0 percent else (100 percent if rawCover > 100 percent else rawCover)
 
   # -------------------------------------------------------------------------
   # EXPORTS
   # -------------------------------------------------------------------------
 
+  export.numSeedling.step = numSeedlings
+  export.numJuvenile.step = numJuveniles
+  export.numAdult.step = numAdults
+  export.numAlive.step = numTrees
+  export.invasiveCover.step = invasiveCover
+  export.newSeedlings.step = actualNewSeedlings
   export.fireSeverity.init = fireSeverity
-  export.numSeedling.step = count(NativeTree[NativeTree.state == "Seedling"])
-  export.numJuvenile.step = count(NativeTree[NativeTree.state == "Juvenile"])
-  export.numAdult.step = count(NativeTree[NativeTree.state == "Adult"])
-  export.treeAlive.step = count(NativeTree[NativeTree.alive == true])
-  export.invasiveCover.step = mean(InvasiveGrass.cover)
+  export.elevation.init = elevation
 
 end patch
-
-# =============================================================================
-# INVASIVE GRASS ORGANISM
-# =============================================================================
-
-start organism InvasiveGrass
-
-  # Initial cover (fixed at 10%)
-  cover.init = 10 percent
-
-  # Growth each year (logistic growth toward 100%)
-  cover.step = prior.cover + 3 percent
-
-end organism
 
 # =============================================================================
 # NATIVE TREE ORGANISM
@@ -103,9 +240,42 @@ start organism NativeTree
   # INITIALIZATION
   # -------------------------------------------------------------------------
 
-  alive.init = true
-  age.init = 0 years
-  state.init = "Seedling"
+  # Age parameters from config
+  initialAgeMin.init = config params.initialAgeMin else 0 years
+  initialAgeMax.init = config params.initialAgeMax else 20 years
+
+  # Random initial age
+  age.init = sample uniform from initialAgeMin to initialAgeMax
+
+  # Life stage thresholds from config
+  seedlingToJuvenileAge.init = config params.seedlingToJuvenileAge else 3 years
+  juvenileToAdultAge.init = config params.juvenileToAdultAge else 10 years
+
+  # Determine initial state based on age
+  state.init = "Adult" if age >= juvenileToAdultAge else (
+    "Juvenile" if age >= seedlingToJuvenileAge else "Seedling")
+
+  # -------------------------------------------------------------------------
+  # FIRE MORTALITY (applied at initialization, step 0)
+  # -------------------------------------------------------------------------
+
+  # Calculate fire mortality based on severity and life stage
+  # High severity (>0.7): Seedling 100%, Juvenile 90%, Adult 60%
+  # Medium severity (0.3-0.7): Seedling 80%, Juvenile 50%, Adult 20%
+  # Low severity (<0.3): Seedling 20%, Juvenile 10%, Adult 5%
+  fireMortality.init = 100 percent if (here.fireSeverity > 0.7 and current.state == "Seedling") else (
+    90 percent if (here.fireSeverity > 0.7 and current.state == "Juvenile") else (
+    60 percent if (here.fireSeverity > 0.7 and current.state == "Adult") else (
+    80 percent if (here.fireSeverity > 0.3 and current.state == "Seedling") else (
+    50 percent if (here.fireSeverity > 0.3 and current.state == "Juvenile") else (
+    20 percent if (here.fireSeverity > 0.3 and current.state == "Adult") else (
+    20 percent if (here.fireSeverity > 0 and current.state == "Seedling") else (
+    10 percent if (here.fireSeverity > 0 and current.state == "Juvenile") else (
+    5 percent if here.fireSeverity > 0 else 0 percent))))))))
+
+  # Roll for fire survival
+  fireDeathRoll.init = sample uniform from 0 percent to 100 percent
+  alive.init = fireDeathRoll > fireMortality
 
   # -------------------------------------------------------------------------
   # AGE PROGRESSION
@@ -119,12 +289,23 @@ start organism NativeTree
 
   start state "Seedling"
 
-    # Annual mortality: 30%
-    deathRoll.step = sample uniform from 0 percent to 100 percent
-    alive.step = deathRoll > 30 percent
+    # Base mortality: 40% annually
+    # Additional 20% if invasive cover > 30%
+    invasivePressure.step = 20 percent if here.invasiveCover > 30 percent else 0 percent
+    baseMortality.step = 40 percent + invasivePressure
 
-    # Transition to Juvenile at age 3
-    state.step:if(current.age >= 3 years and current.alive == true) = "Juvenile"
+    # Elevation bonus: reduces mortality at high elevation
+    # Uses zone-based reduction (no multiplication needed)
+    mortalityReduction.step = here.seedlingElevationReduction if here.isHighElevation else (
+      here.seedlingMediumReduction if here.isMediumElevation else 0 percent)
+    totalMortality.step = baseMortality - mortalityReduction
+
+    # Roll for survival
+    deathRoll.step = sample uniform from 0 percent to 100 percent
+    alive.step = deathRoll > totalMortality
+
+    # Transition to Juvenile at threshold age
+    state.step:if(current.age >= seedlingToJuvenileAge and current.alive == true) = "Juvenile"
 
   end state
 
@@ -134,12 +315,20 @@ start organism NativeTree
 
   start state "Juvenile"
 
-    # Annual mortality: 15%
-    deathRoll.step = sample uniform from 0 percent to 100 percent
-    alive.step = deathRoll > 15 percent
+    # Base mortality: 15% annually
+    baseMortality.step = 15 percent
 
-    # Transition to Adult at age 10
-    state.step:if(current.age >= 10 years and current.alive == true) = "Adult"
+    # Elevation bonus: reduces mortality at high elevation (smaller effect than seedlings)
+    # Uses zone-based reduction (no multiplication needed)
+    mortalityReduction.step = here.juvenileElevationReduction if here.isHighElevation else (
+      here.juvenileMediumReduction if here.isMediumElevation else 0 percent)
+    totalMortality.step = baseMortality - mortalityReduction
+
+    deathRoll.step = sample uniform from 0 percent to 100 percent
+    alive.step = deathRoll > totalMortality
+
+    # Transition to Adult at threshold age
+    state.step:if(current.age >= juvenileToAdultAge and current.alive == true) = "Adult"
 
   end state
 
@@ -149,7 +338,7 @@ start organism NativeTree
 
   start state "Adult"
 
-    # Annual mortality: 5%
+    # Base mortality: 5% annually
     deathRoll.step = sample uniform from 0 percent to 100 percent
     alive.step = deathRoll > 5 percent
 

@@ -18,19 +18,26 @@
 library(tidyverse)
 library(scales)
 
-# Create output directory
-dir.create("analysis/figures", showWarnings = FALSE, recursive = TRUE)
+# Create output directories (organized structure)
+dir.create("analysis/figures/timeseries", showWarnings = FALSE, recursive = TRUE)
+dir.create("analysis/figures/spatial", showWarnings = FALSE, recursive = TRUE)
+dir.create("analysis/figures/comparisons", showWarnings = FALSE, recursive = TRUE)
 
 # ==============================================================================
 # DATA LOADING
 # ==============================================================================
 
-# Load combined results
-if (!file.exists("results/all_scenarios_combined.csv")) {
-  stop("Run 'python run_scenarios.py' first to generate scenario data")
+# Load combined results (check both old and new locations)
+data_path <- if (file.exists("analysis/summaries/all_scenarios_combined.csv")) {
+  "analysis/summaries/all_scenarios_combined.csv"
+} else if (file.exists("results/all_scenarios_combined.csv")) {
+  "results/all_scenarios_combined.csv"
+} else {
+  stop("Run demo_workflow.ipynb first to generate scenario data")
 }
 
-data <- read_csv("results/all_scenarios_combined.csv", show_col_types = FALSE)
+cat("Loading data from:", data_path, "\n")
+data <- read_csv(data_path, show_col_types = FALSE)
 
 # Standardize column names if needed
 if ("numSeedling" %in% names(data)) {
@@ -135,8 +142,8 @@ p1 <- ggplot(time_series_summary, aes(x = year_post_fire, y = trees_mean, color 
   ) +
   guides(color = guide_legend(nrow = 1), fill = guide_legend(nrow = 1))
 
-ggsave("analysis/figures/fig1_tree_population_comparison.png", p1, width = 12, height = 7, dpi = 300)
-cat("Saved: fig1_tree_population_comparison.png\n")
+ggsave("analysis/figures/timeseries/fig1_tree_population_comparison.png", p1, width = 12, height = 7, dpi = 300)
+cat("Saved: analysis/figures/timeseries/fig1_tree_population_comparison.png\n")
 
 # ==============================================================================
 # FIGURE 2: INVASIVE COVER - SCENARIO COMPARISON
@@ -168,8 +175,8 @@ p2 <- ggplot(time_series_summary, aes(x = year_post_fire, y = invasive_mean, col
   ) +
   guides(color = guide_legend(nrow = 1), fill = guide_legend(nrow = 1))
 
-ggsave("analysis/figures/fig2_invasive_cover_comparison.png", p2, width = 12, height = 7, dpi = 300)
-cat("Saved: fig2_invasive_cover_comparison.png\n")
+ggsave("analysis/figures/timeseries/fig2_invasive_cover_comparison.png", p2, width = 12, height = 7, dpi = 300)
+cat("Saved: analysis/figures/timeseries/fig2_invasive_cover_comparison.png\n")
 
 # ==============================================================================
 # FIGURE 3: FINAL OUTCOMES BAR CHART
@@ -210,8 +217,8 @@ p3 <- ggplot(final_outcomes, aes(x = scenario, y = trees_mean, fill = scenario))
     axis.text.x = element_text(size = 10)
   )
 
-ggsave("analysis/figures/fig3_final_tree_population.png", p3, width = 10, height = 6, dpi = 300)
-cat("Saved: fig3_final_tree_population.png\n")
+ggsave("analysis/figures/comparisons/fig3_final_tree_population.png", p3, width = 10, height = 6, dpi = 300)
+cat("Saved: analysis/figures/comparisons/fig3_final_tree_population.png\n")
 
 # ==============================================================================
 # FIGURE 4: FIRE SEVERITY MAP (from fire_only scenario)
@@ -244,8 +251,8 @@ if (nrow(fire_data) > 0) {
       legend.position = "right"
     )
 
-  ggsave("analysis/figures/fig4_fire_severity_map.png", p4, width = 8, height = 7, dpi = 300)
-  cat("Saved: fig4_fire_severity_map.png\n")
+  ggsave("analysis/figures/spatial/fig4_fire_severity_map.png", p4, width = 8, height = 7, dpi = 300)
+  cat("Saved: analysis/figures/spatial/fig4_fire_severity_map.png\n")
 }
 
 # ==============================================================================
@@ -281,8 +288,8 @@ p5 <- ggplot(effectiveness, aes(x = scenario, y = recovery_pct, fill = scenario)
     axis.text.x = element_text(size = 10)
   )
 
-ggsave("analysis/figures/fig5_intervention_effectiveness.png", p5, width = 10, height = 6, dpi = 300)
-cat("Saved: fig5_intervention_effectiveness.png\n")
+ggsave("analysis/figures/comparisons/fig5_intervention_effectiveness.png", p5, width = 10, height = 6, dpi = 300)
+cat("Saved: analysis/figures/comparisons/fig5_intervention_effectiveness.png\n")
 
 # ==============================================================================
 # FIGURE 6: LIFE STAGE COMPOSITION BY SCENARIO
@@ -319,8 +326,8 @@ p6 <- ggplot(life_stage_data, aes(x = year_post_fire, y = count, fill = stage)) 
     strip.text = element_text(size = 9)
   )
 
-ggsave("analysis/figures/fig6_life_stages_by_scenario.png", p6, width = 14, height = 5, dpi = 300)
-cat("Saved: fig6_life_stages_by_scenario.png\n")
+ggsave("analysis/figures/timeseries/fig6_life_stages_by_scenario.png", p6, width = 14, height = 5, dpi = 300)
+cat("Saved: analysis/figures/timeseries/fig6_life_stages_by_scenario.png\n")
 
 # ==============================================================================
 # FIGURE 7: COMPREHENSIVE SCENARIO DASHBOARD (Faceted)
@@ -361,8 +368,8 @@ p7 <- ggplot(dashboard_data, aes(x = year_post_fire, y = value, color = scenario
     panel.spacing = unit(0.5, "lines")
   )
 
-ggsave("analysis/figures/fig7_scenario_dashboard.png", p7, width = 16, height = 8, dpi = 300)
-cat("Saved: fig7_scenario_dashboard.png\n")
+ggsave("analysis/figures/comparisons/fig7_scenario_dashboard.png", p7, width = 16, height = 8, dpi = 300)
+cat("Saved: analysis/figures/comparisons/fig7_scenario_dashboard.png\n")
 
 # ==============================================================================
 # FIGURE 8: ALL METRICS BY SCENARIO (Comprehensive Faceted View)
@@ -412,8 +419,8 @@ p8 <- ggplot(metrics_long, aes(x = year_post_fire, y = value, color = metric)) +
   ) +
   guides(color = guide_legend(nrow = 1))
 
-ggsave("analysis/figures/fig8_all_metrics_by_scenario.png", p8, width = 18, height = 6, dpi = 300)
-cat("Saved: fig8_all_metrics_by_scenario.png\n")
+ggsave("analysis/figures/comparisons/fig8_all_metrics_by_scenario.png", p8, width = 18, height = 6, dpi = 300)
+cat("Saved: analysis/figures/comparisons/fig8_all_metrics_by_scenario.png\n")
 
 # ==============================================================================
 # FIGURE 9: INTERVENTION COMPARISON MATRIX
@@ -464,8 +471,8 @@ p9 <- ggplot(comparison_data, aes(x = year_post_fire, y = value, color = scenari
   ) +
   guides(color = guide_legend(nrow = 1))
 
-ggsave("analysis/figures/fig9_intervention_comparison.png", p9, width = 12, height = 10, dpi = 300)
-cat("Saved: fig9_intervention_comparison.png\n")
+ggsave("analysis/figures/comparisons/fig9_intervention_comparison.png", p9, width = 12, height = 10, dpi = 300)
+cat("Saved: analysis/figures/comparisons/fig9_intervention_comparison.png\n")
 
 # ==============================================================================
 # SUMMARY TABLE
@@ -512,6 +519,101 @@ cat("\nEquilibrium at fire time (Year 0):\n")
 for (i in 1:nrow(year0_data)) {
   cat("  ", as.character(year0_data$scenario[i]), ": ", round(year0_data$trees[i]), " trees\n", sep = "")
 }
+
+# ==============================================================================
+# FIGURE 10: SPATIAL FINAL STATE MAPS - TREE DENSITY BY SCENARIO
+# ==============================================================================
+
+# Get final state spatial data
+final_spatial <- data %>%
+  filter(year_post_fire == max(year_post_fire), replicate == min(replicate))
+
+# Tree density map across scenarios
+p10 <- ggplot(final_spatial, aes(x = x, y = y, fill = totalTrees)) +
+  geom_tile() +
+  facet_wrap(~scenario, nrow = 1) +
+  scale_fill_viridis_c(option = "D", limits = c(0, max(final_spatial$totalTrees, na.rm = TRUE))) +
+  coord_fixed() +
+  labs(
+    title = "Tree Density at Year 50 by Scenario",
+    subtitle = "Spatial distribution of recovery across management strategies",
+    x = "X coordinate",
+    y = "Y coordinate",
+    fill = "Trees/patch"
+  ) +
+  theme_minimal(base_size = 11) +
+  theme(
+    plot.title = element_text(face = "bold"),
+    strip.text = element_text(size = 9, face = "bold"),
+    legend.position = "right"
+  )
+
+ggsave("analysis/figures/spatial/fig10_final_tree_density_maps.png", p10, width = 18, height = 5, dpi = 300)
+cat("Saved: analysis/figures/spatial/fig10_final_tree_density_maps.png\n")
+
+# ==============================================================================
+# FIGURE 11: SPATIAL FINAL STATE MAPS - INVASIVE COVER BY SCENARIO
+# ==============================================================================
+
+p11 <- ggplot(final_spatial, aes(x = x, y = y, fill = invasiveCover * 100)) +
+  geom_tile() +
+  facet_wrap(~scenario, nrow = 1) +
+  scale_fill_gradient(low = "white", high = "darkgreen", limits = c(0, 100)) +
+  coord_fixed() +
+  labs(
+    title = "Invasive Cover at Year 50 by Scenario",
+    subtitle = "Spatial distribution of invasive grass across management strategies",
+    x = "X coordinate",
+    y = "Y coordinate",
+    fill = "Cover (%)"
+  ) +
+  theme_minimal(base_size = 11) +
+  theme(
+    plot.title = element_text(face = "bold"),
+    strip.text = element_text(size = 9, face = "bold"),
+    legend.position = "right"
+  )
+
+ggsave("analysis/figures/spatial/fig11_final_invasive_cover_maps.png", p11, width = 18, height = 5, dpi = 300)
+cat("Saved: analysis/figures/spatial/fig11_final_invasive_cover_maps.png\n")
+
+# ==============================================================================
+# FIGURE 12: INTERVENTION BENEFIT DIFFERENCE MAPS
+# ==============================================================================
+
+# Calculate spatial differences for intervention benefits
+fire_only_final <- final_spatial %>%
+  filter(scenario == "Fire Only") %>%
+  select(x, y, fire_only_trees = totalTrees)
+
+# Join intervention scenarios with fire_only
+intervention_diffs <- final_spatial %>%
+  filter(scenario != "Baseline\n(No Fire)") %>%
+  left_join(fire_only_final, by = c("x", "y")) %>%
+  mutate(tree_diff = totalTrees - fire_only_trees)
+
+p12 <- ggplot(intervention_diffs %>% filter(scenario != "Fire Only"),
+              aes(x = x, y = y, fill = tree_diff)) +
+  geom_tile() +
+  facet_wrap(~scenario, nrow = 1) +
+  scale_fill_gradient2(low = "#d73027", mid = "white", high = "#1a9850", midpoint = 0) +
+  coord_fixed() +
+  labs(
+    title = "Intervention Benefit Maps: Additional Trees vs Fire-Only",
+    subtitle = "Green = intervention added trees; Red = fewer trees than fire-only baseline",
+    x = "X coordinate",
+    y = "Y coordinate",
+    fill = "Tree\ndifference"
+  ) +
+  theme_minimal(base_size = 11) +
+  theme(
+    plot.title = element_text(face = "bold"),
+    strip.text = element_text(size = 10, face = "bold"),
+    legend.position = "right"
+  )
+
+ggsave("analysis/figures/spatial/fig12_intervention_benefit_maps.png", p12, width = 14, height = 5, dpi = 300)
+cat("Saved: analysis/figures/spatial/fig12_intervention_benefit_maps.png\n")
 
 cat("\n========================================\n")
 cat("All figures saved to analysis/figures/\n")

@@ -1,6 +1,9 @@
-# Fire + invasive removal scenario
-# Tests invasive grass removal as intervention
+# Fire + Invasive Removal Scenario Configuration
+# ===============================================
+# Fire disturbance with invasive grass removal intervention.
+# Tests whether reducing invasive competition aids recovery.
 
+# Scenario settings
 hasFire = 1 count
 seedingBoost = 0 count
 removalEffort = 12 percent

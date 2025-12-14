@@ -1,6 +1,9 @@
-# Fire-only scenario - fire disturbance, no interventions
-# Shows unmitigated fire impact
+# Fire-Only Scenario Configuration
+# =================================
+# Fire disturbance without any management intervention.
+# Shows the unmitigated impact of fire on the ecosystem.
 
+# Scenario settings
 hasFire = 1 count
 seedingBoost = 0 count
 removalEffort = 0 percent
