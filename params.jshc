@@ -79,15 +79,16 @@ fireLowInvasiveCover = 30 percent
 # TUNED DOWN for stricter competition (was 50%)
 establishmentThreshold = 40 percent
 
-# Growth dynamics
-# AGGRESSIVE: Invasives need to outpace tree recovery at low elevation
-invasiveBaseGrowthRate = 15 percent   # INCREASED - invasives grow fast
-postFireGrowthBonus = 15 percent      # INCREASED - strong post-fire advantage
-postFireBonusDuration = 15 count      # EXTENDED - longer competitive advantage
+# Growth dynamics - tuned for elevation-dependent patterns
+# At LOW elevation: invasives grow ~8% base + 6% post-fire = 14%/year
+# At HIGH elevation: invasives grow ~8% - 12% elevation = near 0%/year
+invasiveBaseGrowthRate = 8 percent    # Base annual growth rate
+postFireGrowthBonus = 6 percent       # Extra growth after fire (low/med elev only)
+postFireBonusDuration = 10 count      # Years of post-fire bonus
 
 # Tree suppression of invasives (0-1 scale)
-# LOW: Let invasives compete even when trees are present
-treeSuppression = 0.1
+# At full tree density, invasive growth reduced by this factor
+treeSuppression = 0.3
 
 # =============================================================================
 # ELEVATION EFFECTS

@@ -18,122 +18,91 @@ See `docs/DEMO_PLANNING.md` for full specification and `WORKFLOW.md` for the tun
 |---------|--------|-------|
 | Fire mortality by severity | ✅ | Uses `:if/:elif` conditional syntax |
 | Elevation affects invasive init | ✅ | High elevation starts with lower invasive cover |
+| Elevation affects invasive growth | ✅ | High elev: no growth, Low elev: fast growth |
+| **Dynamic invasive growth** | ✅ | Logistic growth using `prior.invasiveCover` |
 | Stochastic tree survival | ✅ | Random rolls against mortality thresholds |
+| Tree reproduction | ✅ | Adults produce seedlings, blocked by high invasive cover |
 | Seeding intervention | ✅ | Adds trees at initialization |
-| Removal intervention | ✅ | Reduces initial invasive cover |
+| Removal intervention | ✅ | Reduces invasive cover for 10 years |
 | Config file loading | ✅ | Uses `scenario.jshc` and `params.jshc` |
 | External data (fire, elevation) | ✅ | Preprocessed with band 0 |
 
-### What's Simplified
+### Key Ecological Pattern (Working!)
 
-| Feature | Status | Notes |
-|---------|--------|-------|
-| Invasive dynamics | ⚠️ Static | No growth over time (see below) |
-| Tree reproduction | ⚠️ Limited | Adults produce seedlings but dynamics are simple |
+| Elevation | Invasive Growth | Tree Establishment | 50-Year Outcome |
+|-----------|-----------------|-------------------|-----------------|
+| **Low** | Fast (8%/year) | Blocked (>25% cover) | Trees collapse (204→6162 ratio vs high) |
+| **High** | None (0%/year) | Allowed | Trees recover naturally |
+
+**Management Insight**: Low elevation needs intervention; high elevation recovers on its own.
 
 ---
 
-## Known Issue: `prior.*` Access in Josh
+## RESOLVED: `prior.*` Access Works Correctly
+
+### Previous Concern (Now Invalidated)
+
+Earlier documentation suggested `prior.*` access had issues at step 0. **This has been tested and proven false.** The `prior.*` syntax works correctly for all use cases.
+
+### What Actually Works
+
+```josh
+# This DOES work correctly:
+stepCount.step = prior.stepCount + 1 count
+invasiveCover.step = prior.invasiveCover + growthRate * remainingCapacity
+```
+
+**Test Results:**
+- Linear growth: `10 + 5*step` ✅ Works
+- Logistic growth: `prior + rate * (1 - prior)` ✅ Works
+- Conditional using prior: ✅ Works
+- Compound calculations: ✅ Works
+
+### Current Implementation (Dynamic Invasive Growth)
+
+The model now uses **dynamic invasive growth** with `prior.invasiveCover`:
+
+```josh
+# Logistic growth with elevation-dependent rate
+remainingCapacity.step = (100 percent - prior.invasiveCover) / 100 percent
+growthThisStep.step = clampedGrowthRate * remainingCapacity
+rawInvasiveGrowth.step = prior.invasiveCover + growthThisStep - activeRemoval
+invasiveCover.step = clamp(rawInvasiveGrowth, 0%, 100%)
+```
+
+This produces the correct ecological pattern:
+- Low elevation: 10% → 98% over 50 years (fast growth)
+- High elevation: 0% → 0% (no growth due to elevation reduction)
+
+---
+
+## Known Bug: JSHC Config Percent Values
 
 ### The Problem
 
-Josh has issues with `prior.*` access at step 0 and in certain contexts. This causes dynamic calculations that depend on previous values to fail or produce unexpected results.
+Config files (`.jshc`) return raw numbers instead of percent-scaled values:
 
-**Example of failing code:**
-```josh
-# This doesn't work reliably:
-invasiveCover.step = prior.invasiveCover + growthRate * (1 - prior.invasiveCover)
-```
+| Config File | Expected | Actual |
+|-------------|----------|--------|
+| `invasiveBaseGrowthRate = 8 percent` | 0.08 | 8.0 |
+| `nativeEstablishmentThreshold = 25 percent` | 0.25 | 25.0 |
 
-**Observed behaviors:**
-1. `prior.*` returns undefined/zero at step 0
-2. Complex expressions using `prior.*` may not evaluate correctly
-3. The issue is inconsistent - some `prior.*` usages work, others don't
+This breaks arithmetic and comparisons when mixing config values with inline percent literals.
 
-### Current Workaround: Static Invasive Cover
+### Current Workaround
 
-The model uses **static invasive cover** set at initialization:
+Divide config percent values by 100 after loading:
 
 ```josh
-# Current implementation (simplified, no dynamics)
-invasiveInitValue.init = clampedInvasiveInit
-invasiveCover.init = clampedInvasiveInit
-
-# Only changes via removal intervention
-invasiveAfterRemoval.step = invasiveInitValue - activeRemoval
-invasiveCover.step = 0 percent if invasiveAfterRemoval < 0 percent else invasiveAfterRemoval
+# >>> JSHC_PERCENT_BUG WORKAROUND <<<
+invasiveBaseGrowthRaw.init = config params.invasiveBaseGrowthRate else 8 count
+invasiveBaseGrowth.init = invasiveBaseGrowthRaw / 100 count
+# >>> END JSHC_PERCENT_BUG <<<
 ```
 
-**What this preserves:**
-- Fire severity affects initial invasive cover (high fire → high invasives)
-- Elevation affects initial invasive cover (high elevation → low invasives)
-- Removal intervention reduces invasive cover
+**Search for `JSHC_PERCENT_BUG` in the model to find all affected lines.**
 
-**What this loses:**
-- Invasive growth over time
-- Dynamic competition between trees and invasives
-- Post-fire invasive expansion
-
-### Potential Workarounds
-
-#### Option 1: Step-Conditional Initialization
-
-Use `:if` syntax to handle step 0 specially:
-
-```josh
-invasiveCover.step
-  :if(meta.stepCount == 0) = invasiveInitValue
-  :else = prior.invasiveCover + growthRate
-```
-
-**Status:** Untested - may work if `meta.stepCount` is available
-
-#### Option 2: Lagged Variables
-
-Store the previous value explicitly:
-
-```josh
-invasivePrev.init = invasiveInitValue
-invasivePrev.step = prior.invasiveCover
-
-invasiveCover.step = invasivePrev + growthRate * (1 - invasivePrev)
-```
-
-**Status:** Untested - circular reference may cause issues
-
-#### Option 3: Discrete Time Bins
-
-Pre-calculate invasive cover for discrete time periods:
-
-```josh
-# Calculate cover at key time points during init
-invasiveYear0.init = initialCover
-invasiveYear10.init = initialCover * growthFactor10
-invasiveYear50.init = initialCover * growthFactor50
-
-# Use appropriate value based on current step
-invasiveCover.step
-  :if(meta.stepCount < 10) = invasiveYear0
-  :elif(meta.stepCount < 50) = invasiveYear10
-  :else = invasiveYear50
-```
-
-**Status:** Untested - loses continuous dynamics but avoids `prior.*`
-
-#### Option 4: External Preprocessing
-
-Pre-calculate invasive trajectories in Python and load as external data:
-
-```python
-# Generate invasive cover for each timestep
-for t in range(51):
-    invasive_t = invasive_0 * (1 + growth_rate) ** t
-    save_as_geotiff(invasive_t, f'invasive_t{t}.tif')
-```
-
-Then load the appropriate timestep in Josh based on `meta.stepCount`.
-
-**Status:** Feasible but complex - requires many external files
+When this bug is fixed upstream, remove the `/100` divisions.
 
 ---
 
@@ -247,15 +216,28 @@ mv results/output_0.csv results/<scenario>_0.csv
 
 ## Current Results Summary
 
-| Scenario | Step 0 Trees | Step 50 Trees | Notes |
-|----------|--------------|---------------|-------|
-| baseline | 20,808 | 24,479 | No fire, healthy population |
-| fire_only | 11,578 | 23,667 | 44% fire mortality, good recovery |
-| fire_seeding | 23,209 | 24,479 | Extra initial trees from seeding |
-| fire_removal | 11,655 | 23,693 | Slight improvement from removal |
-| fire_both | 23,158 | 24,385 | Best recovery |
+### Total Tree Population
 
-**Key observation:** Natural recovery is strong - fire_only reaches 97% of baseline by year 50. This may indicate fire mortality or invasive competition is too weak.
+| Scenario | Step 0 Trees | Step 50 Trees | Change |
+|----------|--------------|---------------|--------|
+| baseline | 20,808 | 11,464 | -45% (invasive takeover at low elev) |
+| fire_only | 11,682 | 6,666 | -43% (fire + invasive competition) |
+| fire_seeding | 23,253 | 7,113 | -69% (seeding alone doesn't help) |
+| fire_removal | 11,689 | 11,962 | +2% (removal prevents decline!) |
+| fire_both | 23,335 | 12,483 | -47% (best absolute outcome) |
+
+### Trees at Step 50 by Elevation
+
+| Scenario | Low Elev | High Elev | Ratio |
+|----------|----------|-----------|-------|
+| fire_only | 204 | 6,162 | 30x |
+| fire_removal | 681 | 9,862 | 14x |
+| fire_both | 842 | 10,131 | 12x |
+
+**Key Finding:** The model now demonstrates the target insight:
+- High elevation recovers naturally (no intervention needed)
+- Low elevation requires management (removal intervention = 3.3x more trees)
+- Combined intervention provides best results at low elevation
 
 ---
 
