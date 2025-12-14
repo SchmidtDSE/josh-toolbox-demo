@@ -1,9 +1,8 @@
 # Fire + Both Interventions Scenario Configuration
 # =================================================
 # Fire disturbance with both seeding and invasive removal.
-# Tests whether combined interventions produce synergistic effects.
+# Tests combined intervention effectiveness.
 
-# Scenario settings
-hasFire = 1 count
-seedingBoost = 8 count
-removalEffort = 12 percent
+scenario.hasFire = 1 count
+scenario.seedingBoost = 8 count
+scenario.removalEffort = 12 percent

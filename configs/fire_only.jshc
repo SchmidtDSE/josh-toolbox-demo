@@ -1,9 +1,8 @@
-# Fire-Only Scenario Configuration
+# Fire Only Scenario Configuration
 # =================================
-# Fire disturbance without any management intervention.
-# Shows the unmitigated impact of fire on the ecosystem.
+# Fire disturbance without any interventions.
+# Tests natural post-fire recovery.
 
-# Scenario settings
-hasFire = 1 count
-seedingBoost = 0 count
-removalEffort = 0 percent
+scenario.hasFire = 1 count
+scenario.seedingBoost = 0 count
+scenario.removalEffort = 0 percent

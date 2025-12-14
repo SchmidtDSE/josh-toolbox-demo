@@ -3,7 +3,6 @@
 # Fire disturbance with native tree seeding intervention.
 # Tests whether planting additional seedlings aids recovery.
 
-# Scenario settings
-hasFire = 1 count
-seedingBoost = 8 count
-removalEffort = 0 percent
+scenario.hasFire = 1 count
+scenario.seedingBoost = 8 count
+scenario.removalEffort = 0 percent

@@ -1,9 +1,3 @@
-# Baseline Scenario Configuration
-# ================================
-# No fire, no interventions - serves as the counterfactual control.
-# This represents what would happen without any disturbance.
-
-# Scenario settings
-hasFire = 0 count
-seedingBoost = 0 count
-removalEffort = 0 percent
+scenario.hasFire = 0 count
+scenario.seedingBoost = 0 count
+scenario.removalEffort = 0 percent
