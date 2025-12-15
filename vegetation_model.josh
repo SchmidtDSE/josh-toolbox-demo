@@ -8,42 +8,21 @@
 #       --data scenario.jshc=configs/baseline.jshc \
 #       --data fire.jshd=preprocessed/fire_severity.jshd \
 #       --data elevation.jshd=preprocessed/elevation.jshd \
-#       --data elevationZone.jshd=preprocessed/elevation_zone.jshd \
-#       --data fireZone.jshd=preprocessed/fire_zone.jshd \
 #       vegetation_model.josh Main
 #
 # Config files:
 #   - params.jshc: Ecological parameters (mortality rates, thresholds, etc.)
 #   - scenario.jshc: Scenario settings (hasFire, seedingBoost, removalEffort)
-#   - fire.jshd: Preprocessed fire severity raster (for export only)
-#   - elevation.jshd: Preprocessed elevation raster (for export only)
-#   - elevationZone.jshd: Discrete elevation zones (0=low, 1=med, 2=high) - COUNT
-#   - fireZone.jshd: Discrete fire severity zones (0=low, 1=med, 2=high) - COUNT
 #
-# ZONE-BASED COMPARISONS:
-#   Josh has issues comparing external ratio data with literals. We work around
-#   this by pre-calculating discrete zones in Python and using count comparisons:
-#   - elevationZone == 2 count -> high elevation
-#   - elevationZone == 1 count -> medium elevation
-#   - elevationZone == 0 count -> low elevation
-#   (Same pattern for fireZone)
+# External data (preprocessed rasters, 0-100 percent scale):
+#   - fire.jshd: Fire severity (0%=unburned, 100%=complete consumption)
+#   - elevation.jshd: Elevation gradient (0%=low, 100%=high)
 #
 # ELEVATION EFFECTS:
 #   Elevation drives spatial patterns in ecological outcomes:
-#   - HIGH elevation: Trees recover well, invasives suppressed
-#   - LOW elevation: Invasives dominate, seedlings struggle
+#   - HIGH elevation (>60%): Trees recover well, invasives suppressed
+#   - LOW elevation (<30%): Invasives dominate, seedlings struggle
 #
-# =============================================================================
-# !!! JSHC PERCENT BUG WORKAROUND !!!
-# =============================================================================
-# Config files (.jshc) return raw numbers instead of percent-scaled values.
-# Example: "8 percent" in config returns 8.0, not 0.08
-#
-# WORKAROUND: Divide config percent values by 100 after loading.
-#
-# SEARCH FOR "JSHC_PERCENT_BUG" to find all affected lines.
-# When this bug is fixed, remove the /100 divisions and rename variables.
-# =============================================================================
 # =============================================================================
 
 # =============================================================================
@@ -85,7 +64,7 @@ start simulation Main
   # Output file path
   # Note: Josh's config parser doesn't support string values well, so we use the default
   # path and rename outputs after simulation, or override via command line
-  exportFiles.patch = "file:///workspace/results/output_{replicate}.csv"
+  exportFiles.patch = "file:///workspace/results/base/output_{replicate}.csv"
 
 end simulation
 
@@ -104,39 +83,31 @@ start patch Default
 
   # Intervention intensities
   seedingBoost.init = config scenario.seedingBoost else 0 count
-  # >>> JSHC_PERCENT_BUG WORKAROUND - dividing by 100 <<<
-  removalEffortRaw.init = config scenario.removalEffort else 0 count
-  removalEffort.init = removalEffortRaw / 100 count
-  # >>> END JSHC_PERCENT_BUG <<<
+  removalEffort.init = config scenario.removalEffort else 0 percent
 
   # -------------------------------------------------------------------------
   # FIRE SEVERITY (from external data or zero)
   # -------------------------------------------------------------------------
 
-  # Read fire severity ratio (for export only)
-  fireSeverity.init = (external fire) if hasFire > 0 count else 0
-
-  # Read fire severity ZONE (for conditional logic - 0=low, 1=med, 2=high)
-  # Uses count units which Josh can reliably compare
-  # fireZone removed - using direct ratio comparisons now
+  # Read fire severity (0-100 percent, used for fire mortality and initial invasive cover)
+  fireSeverity.init = (external fire) if hasFire > 0 count else 0 percent
 
   # -------------------------------------------------------------------------
   # ELEVATION (from external data)
   # -------------------------------------------------------------------------
 
-  # Read elevation ratio (for export only)
+  # Read elevation (0-100 percent, used for mortality reductions and invasive suppression)
   elevation.init = external elevation
 
-  # Read elevation ZONE (for conditional logic - 0=low, 1=med, 2=high)
-  # Uses count units which Josh can reliably compare
-  # elevationZone removed - using direct ratio comparisons now
+  # Mortality reductions based on elevation (data is 0-100 percent scale)
+  # CONFIGURABLE via params.jshc for parameter sweeps
+  seedlingElevReductionHigh.init = config params.seedlingElevationReduction else 30 percent
+  seedlingElevReductionMed.init = config params.seedlingMediumElevationReduction else 15 percent
+  juvenileElevReductionHigh.init = config params.juvenileElevationReduction else 10 percent
+  juvenileElevReductionMed.init = config params.juvenileMediumElevationReduction else 5 percent
 
-  # Mortality reductions based on elevation zone
-  # High elevation (zone 2): 30% seedling, 10% juvenile
-  # Medium elevation (zone 1): 15% seedling, 5% juvenile
-  # Low elevation (zone 0): 0% reduction
-  seedlingMortalityReduction.init = 30 percent if elevation > 0.6 else (15 percent if elevation > 0.3 else 0 percent)
-  juvenileMortalityReduction.init = 10 percent if elevation > 0.6 else (5 percent if elevation > 0.3 else 0 percent)
+  seedlingMortalityReduction.init = seedlingElevReductionHigh if elevation > 60 percent else (seedlingElevReductionMed if elevation > 30 percent else 0 percent)
+  juvenileMortalityReduction.init = juvenileElevReductionHigh if elevation > 60 percent else (juvenileElevReductionMed if elevation > 30 percent else 0 percent)
 
   # -------------------------------------------------------------------------
   # SEVERITY THRESHOLDS (hardcoded for compatibility)
@@ -184,10 +155,7 @@ start patch Default
 
   # Establishment threshold: natives can't establish above this invasive cover
   # CONFIGURABLE: Set in params.jshc (nativeEstablishmentThreshold)
-  # >>> JSHC_PERCENT_BUG WORKAROUND - dividing by 100 <<<
-  establishmentThresholdRaw.init = config params.nativeEstablishmentThreshold else 25 count
-  establishmentThreshold.init = establishmentThresholdRaw / 100 count
-  # >>> END JSHC_PERCENT_BUG <<<
+  establishmentThreshold.init = config params.nativeEstablishmentThreshold else 25 percent
 
   # Check if there's room and conditions allow establishment
   roomForSeedlings.step = maxTreesPerPatch - numTrees
@@ -213,12 +181,15 @@ start patch Default
   # where invasives would otherwise dominate.
   # -------------------------------------------------------------------------
 
-  # Initial invasive cover based on fire severity AND elevation
-  # Fire determines base: high fire = 60%, med = 40%, low = 25%, none = 10%
-  # Elevation reduces initial: High elev = -35%, Med elev = -15%, Low elev = 0%
-  baseInvasiveByFire.init = 60 percent if fireSeverity > 0.7 else (40 percent if fireSeverity > 0.3 else (25 percent if fireSeverity > 0 else 10 percent))
+  # Initial invasive cover based on fire severity AND elevation (data is 0-100 percent scale)
+  # Fire determines base: high fire (>70%) = 60%, med (30-70%) = 40%, low (<30%) = 25%, none = 10%
+  # Elevation reduces initial - CONFIGURABLE via params.jshc for parameter sweeps
+  elevInitialReductionHigh.init = config params.elevationInitialInvasiveReduction else 35 percent
+  elevInitialReductionMed.init = config params.elevationMediumInvasiveReduction else 15 percent
+
+  baseInvasiveByFire.init = 60 percent if fireSeverity > 70 percent else (40 percent if fireSeverity > 30 percent else (25 percent if fireSeverity > 0 percent else 10 percent))
   baseInvasive.init = baseInvasiveByFire if hasFire > 0 count else 10 percent
-  elevationInvasiveReduction.init = 35 percent if elevation > 0.6 else (15 percent if elevation > 0.3 else 0 percent)
+  elevationInvasiveReduction.init = elevInitialReductionHigh if elevation > 60 percent else (elevInitialReductionMed if elevation > 30 percent else 0 percent)
   rawInvasiveInit.init = baseInvasive - elevationInvasiveReduction
   clampedInvasiveInit.init = 0 percent if rawInvasiveInit < 0 percent else rawInvasiveInit
   invasiveCover.init = clampedInvasiveInit
@@ -228,30 +199,24 @@ start patch Default
   stepCount.step = prior.stepCount + 1 count
 
   # Invasive growth parameters (CONFIGURABLE via params.jshc)
-  # >>> JSHC_PERCENT_BUG WORKAROUND - dividing by 100 <<<
-  invasiveBaseGrowthRaw.init = config params.invasiveBaseGrowthRate else 8 count
-  invasiveBaseGrowth.init = invasiveBaseGrowthRaw / 100 count
-  postFireBonusRaw.init = config params.postFireGrowthBonus else 6 count
-  postFireBonus.init = postFireBonusRaw / 100 count
-  # >>> END JSHC_PERCENT_BUG <<<
+  invasiveBaseGrowth.init = config params.invasiveBaseGrowthRate else 8 percent
+  postFireBonus.init = config params.postFireGrowthBonus else 6 percent
   postFireDuration.init = config params.postFireBonusDuration else 10 count
   treeSuppFactor.init = config params.treeSuppression else 0.3
 
   # Elevation-based growth rate reduction (STRONG effect for clear spatial pattern)
-  # High elevation: 10% reduction (net growth near zero with tree suppression)
-  # Medium elevation: 4% reduction
-  # Low elevation: 0% reduction (full growth rate)
-  # Using same scale as base growth (decimal: 0.10 = 10%)
-  elevationGrowthReduction.init = 0.10 if elevation > 0.6 else (0.04 if elevation > 0.3 else 0)
+  # CONFIGURABLE via params.jshc for parameter sweeps
+  elevGrowthReductionHigh.init = config params.elevationInvasiveGrowthReduction else 10 percent
+  elevGrowthReductionMed.init = config params.elevationMediumGrowthReduction else 4 percent
+
+  elevationGrowthReduction.init = elevGrowthReductionHigh if elevation > 60 percent else (elevGrowthReductionMed if elevation > 30 percent else 0 percent)
 
   # Active removal effort reduces cover (only during first 10 years)
-  # removalEffort is now in decimal form (0.12 for 12%) due to JSHC_PERCENT_BUG workaround
   activeRemoval.step = removalEffort if stepCount < 10 count else 0
 
   # Post-fire growth bonus (only during post-fire window, only at low/med elevation)
-  # High elevation doesn't get the post-fire invasive boost (too harsh conditions)
-  # postFireBonus is in decimal form (0.06 for 6%) due to JSHC_PERCENT_BUG workaround
-  postFireActive.step = 1 count if (hasFire > 0 count and stepCount < postFireDuration and elevation < 0.6) else 0 count
+  # High elevation (>60%) doesn't get the post-fire invasive boost (too harsh conditions)
+  postFireActive.step = 1 count if (hasFire > 0 count and stepCount < postFireDuration and elevation < 60 percent) else 0 count
   activePostFireBonus.step = postFireBonus if postFireActive > 0 count else 0
 
   # Tree suppression of invasive growth (more trees = less invasive growth)
@@ -324,20 +289,20 @@ start organism NativeTree
 
   # Calculate fire mortality based on fire severity and life stage
   # Using event handler modifier syntax (:if/:elif/:else)
-  # High severity (>0.7): 90% seedling, 75% juvenile, 60% adult
-  # Med severity (0.3-0.7): 60% seedling, 45% juvenile, 30% adult
-  # Low severity (<0.3): 30% seedling, 20% juvenile, 10% adult
+  # High severity (>70%): 90% seedling, 75% juvenile, 60% adult
+  # Med severity (30-70%): 60% seedling, 45% juvenile, 30% adult
+  # Low severity (<30%): 30% seedling, 20% juvenile, 10% adult
 
   fireMortality.init
-    :if(here.fireSeverity > 0.7 and current.state == "Seedling") = 90 percent
-    :elif(here.fireSeverity > 0.7 and current.state == "Juvenile") = 75 percent
-    :elif(here.fireSeverity > 0.7 and current.state == "Adult") = 60 percent
-    :elif(here.fireSeverity > 0.3 and current.state == "Seedling") = 60 percent
-    :elif(here.fireSeverity > 0.3 and current.state == "Juvenile") = 45 percent
-    :elif(here.fireSeverity > 0.3 and current.state == "Adult") = 30 percent
-    :elif(here.fireSeverity > 0 and current.state == "Seedling") = 30 percent
-    :elif(here.fireSeverity > 0 and current.state == "Juvenile") = 20 percent
-    :elif(here.fireSeverity > 0 and current.state == "Adult") = 10 percent
+    :if(here.fireSeverity > 70 percent and current.state == "Seedling") = 90 percent
+    :elif(here.fireSeverity > 70 percent and current.state == "Juvenile") = 75 percent
+    :elif(here.fireSeverity > 70 percent and current.state == "Adult") = 60 percent
+    :elif(here.fireSeverity > 30 percent and current.state == "Seedling") = 60 percent
+    :elif(here.fireSeverity > 30 percent and current.state == "Juvenile") = 45 percent
+    :elif(here.fireSeverity > 30 percent and current.state == "Adult") = 30 percent
+    :elif(here.fireSeverity > 0 percent and current.state == "Seedling") = 30 percent
+    :elif(here.fireSeverity > 0 percent and current.state == "Juvenile") = 20 percent
+    :elif(here.fireSeverity > 0 percent and current.state == "Adult") = 10 percent
     :else = 0 percent
 
   # Roll for fire survival (stochastic)

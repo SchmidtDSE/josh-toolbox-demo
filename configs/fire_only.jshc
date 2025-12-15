@@ -3,6 +3,6 @@
 # Fire disturbance without any interventions.
 # Tests natural post-fire recovery.
 
-scenario.hasFire = 1 count
-scenario.seedingBoost = 0 count
-scenario.removalEffort = 0 percent
+hasFire = 1 count
+seedingBoost = 0 count
+removalEffort = 0 percent

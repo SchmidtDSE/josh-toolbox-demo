@@ -1,0 +1,161 @@
+# Post-Fire Vegetation Recovery Model Parameters
+# All tunable parameters for the simulation
+# Reference in Josh code as: config params.variableName
+
+# =============================================================================
+# SIMULATION SETTINGS
+# =============================================================================
+
+totalSteps = 50 count
+gridSize = 10 m
+
+# =============================================================================
+# TREE POPULATION
+# =============================================================================
+
+initialTreesPerPatch = 8 count
+maxTreesPerPatch = 10 count
+initialAgeMin = 0 years
+initialAgeMax = 20 years
+
+# =============================================================================
+# LIFE STAGE THRESHOLDS
+# =============================================================================
+
+seedlingToJuvenileAge = 3 years
+juvenileToAdultAge = 10 years
+
+# =============================================================================
+# BASE MORTALITY RATES (annual, by life stage)
+# =============================================================================
+
+seedlingBaseMortality = 40 percent
+juvenileBaseMortality = 15 percent
+adultBaseMortality = 5 percent
+
+# Additional seedling mortality from invasive pressure
+seedlingInvasivePressure = 20 percent
+invasivePressureThreshold = 30 percent
+
+# =============================================================================
+# FIRE SEVERITY THRESHOLDS
+# =============================================================================
+
+highSeverityThreshold = 0.7
+mediumSeverityThreshold = 0.3
+
+# =============================================================================
+# FIRE MORTALITY RATES (by severity and life stage)
+# =============================================================================
+
+# High severity fire mortality (severity > 0.7)
+fireHighSeedling = 90 percent
+fireHighJuvenile = 75 percent
+fireHighAdult = 60 percent
+
+# Medium severity fire mortality (severity 0.3-0.7)
+fireMediumSeedling = 60 percent
+fireMediumJuvenile = 45 percent
+fireMediumAdult = 30 percent
+
+# Low severity fire mortality (severity < 0.3)
+fireLowSeedling = 30 percent
+fireLowJuvenile = 20 percent
+fireLowAdult = 10 percent
+
+# =============================================================================
+# INVASIVE GRASS DYNAMICS
+# =============================================================================
+
+# Baseline (no fire) initial cover
+baselineInvasiveCover = 20 percent
+
+# Post-fire initial cover (HIGH severity = MORE invasives, grass-fire cycle)
+fireHighInvasiveCover = 70 percent
+fireMediumInvasiveCover = 50 percent
+fireLowInvasiveCover = 30 percent
+
+# Establishment threshold - natives can't establish above this
+# TUNED DOWN for stricter competition (was 50%)
+establishmentThreshold = 40 percent
+
+# Growth dynamics
+# AGGRESSIVE: Invasives need to outpace tree recovery at low elevation
+invasiveBaseGrowthRate = 15 percent   # INCREASED - invasives grow fast
+postFireGrowthBonus = 15 percent      # INCREASED - strong post-fire advantage
+postFireBonusDuration = 15 count      # EXTENDED - longer competitive advantage
+
+# Tree suppression of invasives (0-1 scale)
+# LOW: Let invasives compete even when trees are present
+treeSuppression = 0.1
+
+# =============================================================================
+# ELEVATION EFFECTS
+# =============================================================================
+# Elevation creates a spatial gradient in ecological outcomes:
+#   - LOW elevation: Invasives thrive, seedling survival is reduced
+#   - HIGH elevation: Invasives struggle, seedlings survive better
+#
+# The goal is to show that "High elevation areas will recover on their own;
+# we should prioritize management in low elevation burned areas."
+#
+# TUNING GUIDE:
+#   - If patterns are too subtle: INCREASE reduction values
+#   - If invasives never grow at high elevation: DECREASE invasiveElevationReduction
+#   - If seedlings always die at low elevation: DECREASE seedlingElevationReduction
+#   - Effects are applied in zones (high/medium/low elevation)
+#
+# Zone thresholds (defined in model):
+#   - High elevation: >= 60%
+#   - Medium elevation: 30-60%
+#   - Low elevation: < 30%
+
+# Initial invasive cover reduction at HIGH elevation (after fire)
+# This determines if high-elevation burned areas start BELOW establishment threshold
+# CRITICAL: Must be > (fireHighInvasiveCover - establishmentThreshold) for natural recovery
+# Example: 50% means high-elev + high-fire starts at 70% - 50% = 20% cover (below 25% threshold)
+elevationInitialInvasiveReduction = 50 percent
+elevationMediumInvasiveReduction = 25 percent
+
+# Invasive growth rate reduction at HIGH elevation (per year)
+# At high elevation, invasive growth rate is reduced by this amount
+# AGGRESSIVE: Must be large enough to offset base + post-fire growth at high elev
+# Base=15% + Bonus=15% = 30% growth at low elev
+# High elev reduction of 25% -> net 5% growth (slow)
+# Low elev: 30% growth -> fast takeover
+elevationInvasiveGrowthReduction = 25 percent
+elevationMediumGrowthReduction = 12 percent
+
+# Seedling survival bonus from elevation (percent mortality reduction at HIGH elevation)
+# At high elevation, seedling base mortality is reduced by this amount
+# Example: 35 percent means seedlings have 35% lower mortality at high elevation
+seedlingElevationReduction = 35 percent
+seedlingMediumElevationReduction = 15 percent
+
+# Juvenile survival bonus from elevation (percent mortality reduction at HIGH elevation)
+# Juveniles are more established, so elevation matters less
+juvenileElevationReduction = 6 percent
+juvenileMediumElevationReduction = 3 percent
+
+# Establishment threshold - natives can't establish above this invasive cover level
+# This is the critical threshold for the management insight
+# If initial invasive > this, no seedling establishment is possible
+nativeEstablishmentThreshold = 25 percent
+
+# =============================================================================
+# INTERVENTION PARAMETERS
+# =============================================================================
+
+# Seeding intervention
+seedingBoostAmount = 8 count
+
+# Invasive removal intervention
+removalEffortRate = 12 percent
+removalDuration = 10 count
+
+# === SWEEP OVERRIDES ===
+elevationInvasiveGrowthReduction = 30 percent
+invasiveBaseGrowthRate = 25 percent
+nativeEstablishmentThreshold = 35 percent
+seedlingElevationReduction = 35 percent
+elevationInitialInvasiveReduction = 55 percent

@@ -3,6 +3,6 @@
 # Fire disturbance with invasive grass removal intervention.
 # Tests whether reducing invasive competition aids recovery.
 
-scenario.hasFire = 1 count
-scenario.seedingBoost = 0 count
-scenario.removalEffort = 12 percent
+hasFire = 1 count
+seedingBoost = 0 count
+removalEffort = 12 percent

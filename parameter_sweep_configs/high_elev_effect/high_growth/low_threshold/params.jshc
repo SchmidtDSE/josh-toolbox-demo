@@ -1,0 +1,12 @@
+# Auto-generated configuration for parameter sweep
+# Path: high_elev_effect/high_growth/low_threshold
+# Generated: 2025-12-14T22:07:35.500034
+#
+# This file contains ONLY the swept parameters.
+# It should be used alongside the base params.jshc
+#
+elevationInvasiveGrowthReduction = 30 percent
+invasiveBaseGrowthRate = 25 percent
+nativeEstablishmentThreshold = 20 percent
+seedlingElevationReduction = 35 percent
+elevationInitialInvasiveReduction = 55 percent
