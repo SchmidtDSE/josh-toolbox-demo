@@ -187,7 +187,8 @@ start patch Default
   elevInitialReductionHigh.init = config params.elevationInitialInvasiveReduction else 35 percent
   elevInitialReductionMed.init = config params.elevationMediumInvasiveReduction else 15 percent
 
-  baseInvasiveByFire.init = 60 percent if fireSeverity > 70 percent else (40 percent if fireSeverity > 30 percent else (25 percent if fireSeverity > 0 percent else 10 percent))
+  # NOTE: fireSeverity is 0-1 scale after preprocessing, so thresholds use ratio values
+  baseInvasiveByFire.init = 60 percent if fireSeverity > 0.70 else (40 percent if fireSeverity > 0.30 else (25 percent if fireSeverity > 0 else 10 percent))
   baseInvasive.init = baseInvasiveByFire if hasFire > 0 count else 10 percent
   elevationInvasiveReduction.init = elevInitialReductionHigh if elevation > 60 percent else (elevInitialReductionMed if elevation > 30 percent else 0 percent)
   rawInvasiveInit.init = baseInvasive - elevationInvasiveReduction
@@ -294,15 +295,16 @@ start organism NativeTree
   # Low severity (<30%): 30% seedling, 20% juvenile, 10% adult
 
   fireMortality.init
-    :if(here.fireSeverity > 70 percent and current.state == "Seedling") = 90 percent
-    :elif(here.fireSeverity > 70 percent and current.state == "Juvenile") = 75 percent
-    :elif(here.fireSeverity > 70 percent and current.state == "Adult") = 60 percent
-    :elif(here.fireSeverity > 30 percent and current.state == "Seedling") = 60 percent
-    :elif(here.fireSeverity > 30 percent and current.state == "Juvenile") = 45 percent
-    :elif(here.fireSeverity > 30 percent and current.state == "Adult") = 30 percent
-    :elif(here.fireSeverity > 0 percent and current.state == "Seedling") = 30 percent
-    :elif(here.fireSeverity > 0 percent and current.state == "Juvenile") = 20 percent
-    :elif(here.fireSeverity > 0 percent and current.state == "Adult") = 10 percent
+    # NOTE: fireSeverity is 0-1 scale after preprocessing, so thresholds use ratio values
+    :if(here.fireSeverity > 0.70 and current.state == "Seedling") = 90 percent
+    :elif(here.fireSeverity > 0.70 and current.state == "Juvenile") = 75 percent
+    :elif(here.fireSeverity > 0.70 and current.state == "Adult") = 60 percent
+    :elif(here.fireSeverity > 0.30 and current.state == "Seedling") = 60 percent
+    :elif(here.fireSeverity > 0.30 and current.state == "Juvenile") = 45 percent
+    :elif(here.fireSeverity > 0.30 and current.state == "Adult") = 30 percent
+    :elif(here.fireSeverity > 0 and current.state == "Seedling") = 30 percent
+    :elif(here.fireSeverity > 0 and current.state == "Juvenile") = 20 percent
+    :elif(here.fireSeverity > 0 and current.state == "Adult") = 10 percent
     :else = 0 percent
 
   # Roll for fire survival (stochastic)
