@@ -1,2 +1,5 @@
 jar/
 .claude/
+
+# Simulation results (large files, regenerate locally)
+results/

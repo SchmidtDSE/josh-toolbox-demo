@@ -1,0 +1,12 @@
+# Auto-generated configuration for parameter sweep
+# Path: sweep_low_elev/growth_5/thresh_80
+# Generated: 2025-12-15T01:21:14.349603
+#
+# This file contains ONLY the swept parameters.
+# It should be used alongside the base params.jshc
+#
+elevationInvasiveGrowthReduction = 5 percent
+invasiveBaseGrowthRate = 5 percent
+nativeEstablishmentThreshold = 80 percent
+seedlingElevationReduction = 10 percent
+elevationInitialInvasiveReduction = 20 percent
