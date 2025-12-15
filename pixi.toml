@@ -1,4 +1,4 @@
-[project]
+[workspace]
 name = "josh-toolbox-demo"
 version = "0.1.0"
 description = "Post-fire vegetation recovery demonstration with Josh simulation engine"
@@ -25,6 +25,7 @@ r-patchwork = "*"
 # Java for Josh simulation engine
 openjdk = "21.*"
 imageio = ">=2.37.0,<3"
+seaborn = ">=0.13.2,<0.14"
 
 [tasks]
 # Start Jupyter Lab
